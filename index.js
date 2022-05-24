@@ -20,6 +20,7 @@ async function run() {
         const productCollection = client.db('my-moon-db').collection('products');
         const userCollection = client.db('my-moon-db').collection('users');
         const orderCollection = client.db('my-moon-db').collection('orders');
+        const reviewCollection = client.db('my-moon-db').collection('review');
 
         // Function for jwt
         function verifyJWT(req, res, next) {
@@ -126,20 +127,22 @@ async function run() {
             res.send(result)
         })
 
+
+        // API for order
         app.get('/order', verifyJWT, async (req, res) => {
-            const buyer = req.query.patient;
+            const userEmail = req.query.userEmail;
             const decodedEmail = req.decoded.email;
-            if (buyer === decodedEmail) {
-                const query = { buyer: buyer };
-                const orders = await orderCollection.find(query).toArray();
-                return res.send(orders);
+            if (userEmail === decodedEmail) {
+                const query = { userEmail: userEmail };
+                const order = await orderCollection.find(query).toArray();
+                return res.send(order);
             }
             else {
                 return res.status(403).send({ message: "forbidden access" })
             }
         })
 
-        app.get('/order/:id', verifyJWT, async (req, res) => {
+        app.get('/order/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const order = await orderCollection.findOne(query);
@@ -148,13 +151,26 @@ async function run() {
 
         app.post('/order', async (req, res) => {
             const order = req.body;
-            const query = { product: order.treatment, date: booking.date, patient: booking.patient }
-            const exists = await orderCollection.findOne(query);
-            if (exists) {
-                return res.send({ success: false, booking: exists })
-            }
-            const result = await orderCollection.insertOne(booking);
-            return res.send({ success: true, result });
+            const result = await orderCollection.insertOne(order)
+            res.send(result)
+        })
+
+        // for all users
+        app.get('/orders', verifyJWT, async (req, res) => {
+            const order = await orderCollection.find().toArray()
+            res.send(order)
+        })
+
+        //API for Review
+        app.post('/review', async (req, res) => {
+            const review = req.body;
+            const result = await reviewCollection.insertOne(review);
+            res.send(result);
+        })
+
+        app.get('/review', async (req, res) => {
+            const reviews = await reviewCollection.find().toArray()
+            res.send(reviews)
         })
     }
     finally {
