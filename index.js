@@ -2,7 +2,11 @@ const express = require('express')
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config()
+require('dotenv').config();
+
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
+
 const app = express()
 const port = process.env.PORT || 5000;
 
@@ -21,6 +25,7 @@ async function run() {
         const userCollection = client.db('my-moon-db').collection('users');
         const orderCollection = client.db('my-moon-db').collection('orders');
         const reviewCollection = client.db('my-moon-db').collection('review');
+        const paymentCollection = client.db('my-moon-db').collection('payment');
 
         // Function for jwt
         function verifyJWT(req, res, next) {
@@ -161,6 +166,21 @@ async function run() {
             res.send(order)
         })
 
+        //API for update order
+        app.patch('/order/:id', async (req, res) => {
+            const id = req.params.id;
+            const payment = req.body;
+            const filter = { _id: ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId
+                }
+            }
+            const result = await paymentCollection.insertOne(payment)
+            const updateOrder = await orderCollection.updateOne(filter, updatedDoc);
+            res.send(updatedDoc)
+        })
         //API for Review
         app.post('/review', async (req, res) => {
             const review = req.body;
@@ -172,6 +192,23 @@ async function run() {
             const reviews = await reviewCollection.find().toArray()
             res.send(reviews)
         })
+
+        //Payment API
+        app.post("/create-payment-intent", async (req, res) => {
+            const { price } = req.body;
+            const amount = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                payment_method_types: ['card']
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
+
+
     }
     finally {
 
