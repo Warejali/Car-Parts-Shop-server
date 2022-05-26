@@ -26,6 +26,7 @@ async function run() {
         const orderCollection = client.db('my-moon-db').collection('orders');
         const reviewCollection = client.db('my-moon-db').collection('review');
         const paymentCollection = client.db('my-moon-db').collection('payment');
+        const profilesCollection = client.db("my-moon-db").collection("profiles");
 
         // Function for jwt
         function verifyJWT(req, res, next) {
@@ -71,10 +72,39 @@ async function run() {
             res.send({ result, token })
         })
 
+
+        // update profile
+
+        app.put('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const updateProfile = req.body;
+            const filter = { email: email };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: {
+                    education: updateProfile.education,
+                    about: updateProfile.about,
+                    city: updateProfile.location,
+                    country: updateProfile.location,
+                    phone: updateProfile.phone,
+                    LinkedIn: updateProfile.phone
+                }
+            };
+            const result = await userCollection.updateOne(filter, updateDoc, options);
+            res.send(result)
+        })
+
         // for all users
         app.get('/user', verifyJWT, async (req, res) => {
             const users = await userCollection.find().toArray()
             res.send(users)
+        })
+        //update User
+        app.get('/profile/:email', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const proUsers = await userCollection.findOne(query)
+            res.send(proUsers)
         })
 
 
@@ -181,6 +211,13 @@ async function run() {
             const updateOrder = await orderCollection.updateOne(filter, updatedDoc);
             res.send(updatedDoc)
         })
+
+        app.delete('/order/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await orderCollection.deleteOne(query)
+            res.send(result)
+        })
         //API for Review
         app.post('/review', async (req, res) => {
             const review = req.body;
@@ -192,6 +229,28 @@ async function run() {
             const reviews = await reviewCollection.find().toArray()
             res.send(reviews)
         })
+
+
+        //set OR update userProfile
+        app.put('/userProfile/:email', async (req, res) => {
+            const email = req.params.email;
+            const user = req.body
+            const filter = { email: email }
+            const options = { upsert: true }
+            const updateDoc = {
+                $set: user
+            }
+            const result = await profilesCollection.updateOne(filter, updateDoc, options)
+            res.send(result)
+        })
+
+        //get userProfile
+        app.get("/getUserProfile/:email", verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            const userProfile = await profilesCollection.findOne({ email: email });
+            res.send(userProfile);
+        });
+
 
         //Payment API
         app.post("/create-payment-intent", async (req, res) => {
